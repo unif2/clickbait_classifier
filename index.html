@@ -1,0 +1,348 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Buzzfeed Lists</title>
+	<meta charset="utf-8">
+	<style>
+
+		body {
+		  font: 10px sans-serif;
+		  color: #000;
+		}
+
+		div.loading {
+			display: none;
+			font-size: 24px;
+			font-weight: bold;
+			text-align: center;
+
+		}
+
+		div.container {
+			width: 960px;
+			margin-left: auto;
+			margin-right: auto;
+		}
+
+		.bar rect.marker {
+			fill: #fff;
+			stroke: none;
+		}
+
+		.bar {
+			cursor: pointer;
+		}
+
+		.bar rect.filled {
+		  fill: steelblue;
+		  stroke: none;
+		  shape-rendering: crispEdges;
+		  cursor: pointer;
+		  opacity: 0.8;
+		}
+
+		.bar text {
+			display: none;
+			font-weight: bold;
+		}
+
+		.bar:hover rect.filled {
+			opacity: 1;
+		}
+
+		.bar:hover rect.marker {
+			fill: #dedede;
+		}
+
+		.bar:hover text {
+			display: block;
+		}
+
+		.bar.selected rect.filled {
+			opacity: 1;
+		}
+
+		.bar.selected rect.marker {
+			fill: #dedede;
+		}		
+
+		.bar.selected text {
+			display: block;
+		}
+
+		a {
+			text-decoration: none;
+			color: steelblue;
+		}
+
+		a:hover {
+			text-decoration: underline;
+		}
+
+		.bar rect:hover {
+		  opacity: 1;
+		}
+		
+		.axis path, .axis line {
+		  fill: none;
+		  stroke: #000;
+		  shape-rendering: crispEdges;
+		}
+
+		text.title {
+			font-weight: bold;
+			font-size: 24px;
+		}
+
+		.bar.highlighted rect.filled {
+			fill: tomato;
+		}
+
+	    div.header {
+	      font-weight: bold;
+	      font-size: 24px;
+	      padding-bottom: 2px;
+	    }
+
+	    div.credits {
+	    	font-size: 14px;	    	
+	    	font-weight: bold;
+	    	padding-bottom: 12px;
+	    }
+
+	    div.instructions {
+	    	font-weight: bold;
+	    	font-size: 16px;
+	    	color: #666;
+	    	font-style: italic;
+	    	padding-bottom: 20px;
+	    }
+
+	    div.highlighting {
+	    	font-weight: bold;
+	    	font-size: 16px;
+	    	padding-bottom: 8px;
+	    }
+
+	    div.highlighting span {
+	    	color: #666;
+	    	cursor: pointer;
+	    	margin-right: 16px;
+	    }
+
+	    div.highlighting span:first-of-type {
+	    	margin-left: 16px;
+	    }
+
+	    div.highlighting span.highlighted {
+	    	color: tomato;
+	    }
+
+	    div.article-list {
+	    	margin-left: 30px;
+	    }
+
+	    div.article-list a {
+	    	color: steelblue;
+	    	font-weight: bold;
+	    	font-size: 14px;
+	    }
+
+	    div.article-list div {
+	    	margin-bottom: 6px;
+	    }
+
+		body.loading div.loading {
+			display: block;
+		}
+
+		body.loading div.chart {
+			display: none;
+		}
+
+		body.loading div.article-list {
+			display: none;
+		}
+
+	</style>
+	</head>
+	<body class="loading">
+		<div class="container">
+			<div class="header">
+				A Bar Chart of BuzzFeed List Lengths for Articles from 2014-2016
+			</div>
+					
+			<div class="highlighting">
+				Highlight:<span>none</span><span>even numbers</span><span>prime numbers</span><span>multiples of 5</span><span class="highlighted">multiples of 10</span>
+			</div>
+			<div class="instructions">
+				Click on a bar to see the corresponding lists.
+			</div>
+			<div class="loading">Loading...</div>
+			<div class="chart">
+			</div>		
+			<div class="article-list">
+			</div>
+		</div>
+		<script src="http://d3js.org/d3.v3.min.js"></script>
+		<script>
+
+		var margin = {top: 20, right: 30, bottom: 30, left: 30},
+	    width = 960 - margin.left - margin.right,
+	    height = 400 - margin.top - margin.bottom;
+
+		var counts = [];
+
+		// Generate an Irwin–Hall distribution of 10 random variables.
+		d3.json("sample.json",function(error,histo) {
+
+			var min = Infinity, max = -Infinity;
+
+			histo.forEach(function(d) {
+				counts.push(d.y);				
+
+				if (d.x < min) min = d.x;
+				if (d.x > max) max = d.x;
+
+				//histoPairs.push({x: b, y: histo[bin].length, articles: histo[bin]})
+			});
+			
+			var x = d3.scale.linear()
+			    .domain([min,max])
+			    .range([0, width]);
+
+			var y = d3.scale.linear()
+				.domain([0,d3.max(counts)])
+				.range([0,height]);
+
+			var xAxis = d3.svg.axis()
+			    .scale(x)
+			    .orient("bottom");
+
+			var numBins = max-min;
+
+			var multiple = 10;
+
+			var randBin;
+			do {
+				randBin = histo[Math.floor(Math.random()*histo.length)];
+			} while (randBin.articles.length < 10);
+			
+
+
+			var svg = d3.select("div.chart").append("svg")
+			    .attr("width", width + margin.left + margin.right)
+			    .attr("height", height + margin.top + margin.bottom)
+			  .append("g")
+			    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+			var articleList = d3.select("div.article-list");
+
+			var bars = svg.selectAll("g")
+				.data(histo)
+				.enter()
+				.append("g")
+				.attr("class","bar")
+				.classed("selected",function(d) { return d.x === randBin.x});
+
+			articleList.selectAll("div").data(randBin.articles.sort(function(a,b){ return b.s - a.s; })).enter().append("div")
+					.append("a")
+						.attr("href",function(a) { return "http://www.buzzfeed.com"+a.u; })
+						.attr("target","_blank")
+						.text(function(a) {return a.t; });
+
+			bars.on("click",function(d) {
+				bars.classed("selected",false);
+				d3.select(this).classed("selected",true);
+				articleList.selectAll("div").remove();	
+
+				articleList.selectAll("div").data(d.articles.sort(function(a,b){ return b.s - a.s; })).enter().append("div")
+					.append("a")
+						.attr("href",function(a) { return "http://www.buzzfeed.com"+a.u; })
+						.attr("target","_blank")
+						.text(function(a) {return a.t; });
+
+			});
+
+			bars.classed("highlighted",function(d) {
+					if (multiple === "none") return false;
+					if (multiple === "prime") {return isPrime(d.x)}
+					return d.x % multiple === 0;
+				})			
+
+			bars.append("rect")
+				.attr("class","marker")
+			    .attr("x", function(d) {return x(d.x)})
+			    .attr("y", 0)			    
+			    .attr("width", width/numBins)
+			    .attr("height", function(d) {return height-y(d.y)});
+
+			bars.append("text")
+				.attr("class","label")
+				.attr("text-anchor","middle")
+				.text(function(d) {return d.x})
+			    .attr("x", function(d) {return x(d.x)})
+			    .attr("y", 0)
+			    .attr("dx","5px")
+			    .attr("dy","-0.5em")			    
+
+			
+			bars.append("rect")
+				.attr("class","filled")
+			    .attr("x", function(d) {return x(d.x)})
+			    .attr("y", function(d) {return height-y(d.y)})			    
+			    .attr("width", width/numBins)
+			    .attr("height", function(d) {return y(d.y)});
+
+			var spans = d3.selectAll("div.highlighting span").data(["none",2,"prime",5,10]);
+
+			spans.on("click",function(m) {			
+				multiple = m;
+				spans.classed("highlighted",false);
+				d3.select(this).classed("highlighted",true);
+				bars.classed("highlighted",function(d) {
+					if (multiple === "none") return false;
+					if (multiple === "prime") {return isPrime(d.x)}
+					return d.x % multiple === 0;
+				})
+			})
+
+			svg.append("g")
+			    .attr("class", "x axis")
+			    .attr("transform", "translate(0," + height + ")")
+			    .call(xAxis);
+
+			d3.select("body").classed("loading",false);
+			
+		});
+
+		function isPrime(num) {
+		    if(num < 2) return false;
+		    for (var i = 2; i < num; i++) {
+		        if(num%i==0)
+		            return false;
+		    }
+		    return true;
+		}
+
+		function shuffle(array) {
+		  var m = array.length, t, i;
+
+		  // While there remain elements to shuffle…
+		  while (m) {
+
+		    // Pick a remaining element…
+		    i = Math.floor(Math.random() * m--);
+
+		    // And swap it with the current element.
+		    t = array[m];
+		    array[m] = array[i];
+		    array[i] = t;
+		  }
+
+		  return array;
+		}
+		</script>
+	</body>
+</html>
